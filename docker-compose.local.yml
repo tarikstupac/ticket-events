@@ -1,0 +1,106 @@
+version: "3.8"
+
+networks:
+  tickets:
+    driver: bridge
+
+services:
+  mongo1:
+    container_name: mongo_rs0
+    image: mongo:7.0
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017", "--keyFile", "/etc/mongodb/pki/keyfile"]
+    ports:
+      - 27017:27017
+    networks:
+      - tickets
+    env_file:
+      - .env
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: '${MONGO_ADMIN_USER}'
+      MONGO_INITDB_ROOT_PASSWORD: '${MONGO_ADMIN_PASSWD}'
+      MONGO_INITDB_DATABASE: '${DB_NAME}'
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+    healthcheck:
+      test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:\"mongo1:27017\",priority:1},{_id:1,host:\"mongo2:27018\",priority:0.5},{_id:2,host:\"mongo3:27019\",priority:0.5}]}) }" | mongosh --port 27017 -u '${MONGO_ADMIN_USER}' -p '${MONGO_ADMIN_PASSWD}' --authenticationDatabase admin  --quiet
+      interval: 5s
+      timeout: 30s
+      start_period: 0s
+      retries: 30
+    volumes:
+      - "mongo1_data:/data/db"
+      - "mongo1_config:/data/configdb"
+      - ./scripts/mongo/rs_keyfile:/etc/mongodb/pki/keyfile
+      - ./scripts/mongo/init.js:/docker-entrypoint-initdb.d/init-mongo.js
+
+  mongo2:
+    container_name: mongo_rs1
+    image: mongo:7.0
+    command: ["--replSet", "rs0",  "--bind_ip_all", "--port", "27018", "--keyFile", "/etc/mongodb/pki/keyfile"]
+    ports:
+      - 27018:27018
+    networks:
+      - tickets
+    env_file:
+      - .env
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: '${MONGO_ADMIN_USER}'
+      MONGO_INITDB_ROOT_PASSWORD: '${MONGO_ADMIN_PASSWD}'
+    volumes:
+      - "mongo2_data:/data/db"
+      - "mongo2_config:/data/configdb"
+      - ./scripts/mongo/rs_keyfile:/etc/mongodb/pki/keyfile
+
+  mongo3:
+    container_name: mongo_rs2
+    image: mongo:7.0
+    command: ["--replSet", "rs0",  "--bind_ip_all", "--port", "27019", "--keyFile", "/etc/mongodb/pki/keyfile"]
+    ports:
+      - 27019:27019
+    networks:
+      - tickets
+    env_file:
+      - .env
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: '${MONGO_ADMIN_USER}'
+      MONGO_INITDB_ROOT_PASSWORD: '${MONGO_ADMIN_PASSWD}'
+    volumes:
+      - "mongo3_data:/data/db"
+      - "mongo3_config:/data/configdb"
+      - ./scripts/mongo/rs_keyfile:/etc/mongodb/pki/keyfile
+
+  redis:
+    container_name: redis
+    image: redis:latest
+    restart: always
+    ports:
+      - '6379:6379'
+    networks:
+      - tickets
+    env_file:
+      - .env
+
+  mongo-express:
+    image: mongo-express
+    depends_on:
+      mongo1:
+        condition: service_healthy
+    ports:
+      - 8080:8080
+    networks:
+      - tickets
+    env_file:
+      - .env
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_ADMIN_USER}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_ADMIN_PASSWD}
+      ME_CONFIG_MONGODB_URL: mongodb://${DB_USERNAME}:${DB_PASSWORD}@mongo1:27017,mongo2:27018,mongo3:27019/${DB_NAME}?replicaSet=rs0
+
+
+volumes:
+  mongo1_data:
+  mongo2_data:
+  mongo3_data:
+  mongo1_config:
+  mongo2_config:
+  mongo3_config:
