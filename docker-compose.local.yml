@@ -80,6 +80,7 @@ services:
     env_file:
       - .env
   app:
+    container_name: tickets-app
     env_file:
       - .env
     build:
@@ -94,23 +95,30 @@ services:
     depends_on:
       mongo_rs0:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health-check || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
         
-  # mongo-express:
-  #   image: mongo-express
-  #   depends_on:
-  #     mongo_rs0:
-  #       condition: service_healthy
-  #   ports:
-  #     - 8080:8080
-  #   networks:
-  #     - tickets
-  #   env_file:
-  #     - .env
-  #   environment:
-  #     ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_ADMIN_USER}
-  #     ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_ADMIN_PASSWD}
-  #     ME_CONFIG_MONGODB_URL: mongodb://${DB_USERNAME}:${DB_PASSWORD}@mongo_rs0:27017,mongo_rs1:27018,mongo_rs2:27019/${DB_NAME}?replicaSet=rs0
+  mongo-express:
+    container_name: mongo-express
+    image: mongo-express
+    depends_on:
+      mongo_rs0:
+        condition: service_healthy
+    ports:
+      - 8081:8081
+    networks:
+      - tickets
+    env_file:
+      - .env
+    environment:
+      PORT: ${ME_PORT}
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_ADMIN_USER}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_ADMIN_PASSWD}
+      ME_CONFIG_MONGODB_URL: mongodb://${DB_USERNAME}:${DB_PASSWORD}@mongo_rs0:27017,mongo_rs1:27018,mongo_rs2:27019/${DB_NAME}?replicaSet=rs0
 
 
 volumes:

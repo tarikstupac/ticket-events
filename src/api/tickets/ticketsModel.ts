@@ -5,6 +5,7 @@ import { z } from "zod";
 
 extendZodWithOpenApi(z);
 
+// Payment schema
 export type TicketPayment = z.infer<typeof TicketPaymentSchema>;
 export const TicketPaymentSchema = z.object({
   ticketId: z.string({ required_error: "ticketId is required" }).uuid("ticketId must be a valid uuid v4"),
@@ -20,11 +21,11 @@ export const TicketPaymentSchema = z.object({
     .multipleOf(0.01, "paymentAmount must contain 2 decimal places at most")
     .finite(),
 });
-
 export const CreatePaymentSchema = z.object({
   body: TicketPaymentSchema,
 });
 
+// Payout schema
 export type TicketPayout = z.infer<typeof TicketPayoutSchema>;
 export const TicketPayoutSchema = z.object({
   ticketId: z.string({ required_error: "ticketId is required" }).uuid("ticketId must be a valid uuid v4"),
@@ -36,9 +37,16 @@ export const TicketPayoutSchema = z.object({
     .min(0.01, "payoutAmount must be greater than 0.00")
     .multipleOf(0.01, "paymentAmount must contain 2 decimal places at most")
     .finite(),
-  isClosed: z.boolean({ required_error: "isClosed is required" }),
+  isClosed: z.boolean({
+    required_error: "isClosed is required",
+    invalid_type_error: "isClosed must be a boolean",
+  }),
+});
+export const UpdatePayoutSchema = z.object({
+  body: TicketPayoutSchema,
 });
 
+// Ticket schema
 export const TicketSchema = z.object({
   ticketId: z.string().uuid(),
   playerUsername: z.string().uuid(),
@@ -55,6 +63,7 @@ export interface ITicket extends Document {
   isClosed: boolean;
 }
 
+// Ticket model
 const schema: Schema = new Schema(
   {
     ticketId: {
@@ -80,6 +89,7 @@ const schema: Schema = new Schema(
     paymentAmount: {
       type: Number,
       required: true,
+      set: (v: number) => Number.parseFloat(v.toFixed(2)),
       min: 0.01,
       validate: {
         validator: (v: number) => /^\d+(\.\d{1,2})?$/.test(v.toString()),
@@ -89,6 +99,7 @@ const schema: Schema = new Schema(
     payoutAmount: {
       type: Number,
       min: 0.01,
+      set: (v: number) => Number.parseFloat(v.toFixed(2)),
       validate: {
         validator: (v: number) => /^\d+(\.\d{1,2})?$/.test(v.toString()),
         message: (props: any) => `${props.value} is not a valid amount`,

@@ -20,4 +20,5 @@ export const env = cleanEnv(process.env, {
   DB_NAME: str({ devDefault: testOnly("ticketing") }),
   ME_CONFIG_BASICAUTH: str({ devDefault: testOnly("false") }),
   ME_CONFIG_MONGODB_ENABLE_ADMIN: str({ devDefault: testOnly("false") }),
+  ME_PORT: port({ devDefault: testOnly(8081) }),
 });
