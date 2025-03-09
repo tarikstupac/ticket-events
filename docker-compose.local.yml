@@ -5,7 +5,7 @@ networks:
     driver: bridge
 
 services:
-  mongo1:
+  mongo_rs0:
     container_name: mongo_rs0
     image: mongo:7.0
     command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017", "--keyFile", "/etc/mongodb/pki/keyfile"]
@@ -22,7 +22,7 @@ services:
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
     healthcheck:
-      test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:\"mongo1:27017\",priority:1},{_id:1,host:\"mongo2:27018\",priority:0.5},{_id:2,host:\"mongo3:27019\",priority:0.5}]}) }" | mongosh --port 27017 -u '${MONGO_ADMIN_USER}' -p '${MONGO_ADMIN_PASSWD}' --authenticationDatabase admin  --quiet
+      test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:\"mongo_rs0:27017\",priority:1},{_id:1,host:\"mongo_rs1:27018\",priority:0.5},{_id:2,host:\"mongo_rs2:27019\",priority:0.5}]}) }" | mongosh --port 27017 -u '${MONGO_ADMIN_USER}' -p '${MONGO_ADMIN_PASSWD}' --authenticationDatabase admin  --quiet
       interval: 5s
       timeout: 30s
       start_period: 0s
@@ -33,7 +33,7 @@ services:
       - ./scripts/mongo/rs_keyfile:/etc/mongodb/pki/keyfile
       - ./scripts/mongo/init.js:/docker-entrypoint-initdb.d/init-mongo.js
 
-  mongo2:
+  mongo_rs1:
     container_name: mongo_rs1
     image: mongo:7.0
     command: ["--replSet", "rs0",  "--bind_ip_all", "--port", "27018", "--keyFile", "/etc/mongodb/pki/keyfile"]
@@ -51,7 +51,7 @@ services:
       - "mongo2_config:/data/configdb"
       - ./scripts/mongo/rs_keyfile:/etc/mongodb/pki/keyfile
 
-  mongo3:
+  mongo_rs2:
     container_name: mongo_rs2
     image: mongo:7.0
     command: ["--replSet", "rs0",  "--bind_ip_all", "--port", "27019", "--keyFile", "/etc/mongodb/pki/keyfile"]
@@ -79,22 +79,38 @@ services:
       - tickets
     env_file:
       - .env
-
-  mongo-express:
-    image: mongo-express
-    depends_on:
-      mongo1:
-        condition: service_healthy
-    ports:
-      - 8080:8080
-    networks:
-      - tickets
+  app:
     env_file:
       - .env
-    environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_ADMIN_USER}
-      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_ADMIN_PASSWD}
-      ME_CONFIG_MONGODB_URL: mongodb://${DB_USERNAME}:${DB_PASSWORD}@mongo1:27017,mongo2:27018,mongo3:27019/${DB_NAME}?replicaSet=rs0
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+      - tickets
+    volumes:
+      - ./:/app/
+    ports:
+      - '8080:8080'
+    depends_on:
+      mongo_rs0:
+        condition: service_healthy
+
+        
+  # mongo-express:
+  #   image: mongo-express
+  #   depends_on:
+  #     mongo_rs0:
+  #       condition: service_healthy
+  #   ports:
+  #     - 8080:8080
+  #   networks:
+  #     - tickets
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_ADMIN_USER}
+  #     ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_ADMIN_PASSWD}
+  #     ME_CONFIG_MONGODB_URL: mongodb://${DB_USERNAME}:${DB_PASSWORD}@mongo_rs0:27017,mongo_rs1:27018,mongo_rs2:27019/${DB_NAME}?replicaSet=rs0
 
 
 volumes:
