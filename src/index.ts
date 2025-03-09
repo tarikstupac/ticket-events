@@ -5,9 +5,6 @@ import mongoose from "mongoose";
 const dbURI =
   `mongodb://${env.DB_USERNAME}:${env.DB_PASSWORD}@mongo_rs0:27017,mongo_rs1:27018,mongo_rs2:27019/${env.DB_NAME}?replicaSet=rs0` as const;
 
-logger.info("Connecting to MongoDB");
-logger.info(dbURI);
-
 const options = {
   autoIndex: true,
   maxPoolSize: 300, // Max open sockets for connection

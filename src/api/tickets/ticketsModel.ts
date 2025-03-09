@@ -7,33 +7,47 @@ extendZodWithOpenApi(z);
 
 export type TicketPayment = z.infer<typeof TicketPaymentSchema>;
 export const TicketPaymentSchema = z.object({
-  ticketId: z.string().uuid(),
-  playerUsername: z.string().uuid(),
+  ticketId: z.string({ required_error: "ticketId is required" }).uuid("ticketId must be a valid uuid v4"),
+  playerUsername: z
+    .string({ required_error: "playerUsername is required" })
+    .uuid("playerUsername must be a valid uuid v4"),
   paymentAmount: z
-    .number()
-    .refine((val) => val > 0.0, {
-      message: "Amount must be greater than 0",
+    .number({
+      required_error: "paymentAmount is required",
+      invalid_type_error: "paymentAmount must be a number",
     })
-    .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
-      message: "Invalid amount format",
-    }),
+    .min(0.01, "paymentAmount must be greater than 0.00")
+    .multipleOf(0.01, "paymentAmount must contain 2 decimal places at most")
+    .finite(),
+});
+
+export const CreatePaymentSchema = z.object({
+  body: TicketPaymentSchema,
 });
 
 export type TicketPayout = z.infer<typeof TicketPayoutSchema>;
 export const TicketPayoutSchema = z.object({
-  ticketId: z.string().uuid(),
+  ticketId: z.string({ required_error: "ticketId is required" }).uuid("ticketId must be a valid uuid v4"),
   payoutAmount: z
-    .number()
-    .refine((val) => val > 0.0, {
-      message: "Amount must be greater than 0",
+    .number({
+      required_error: "payoutAmount is required",
+      invalid_type_error: "payoutAmount must be a number",
     })
-    .refine((val) => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
-      message: "Invalid amount format",
-    }),
-  isClosed: z.boolean(),
+    .min(0.01, "payoutAmount must be greater than 0.00")
+    .multipleOf(0.01, "paymentAmount must contain 2 decimal places at most")
+    .finite(),
+  isClosed: z.boolean({ required_error: "isClosed is required" }),
 });
 
-interface ITicket extends Document {
+export const TicketSchema = z.object({
+  ticketId: z.string().uuid(),
+  playerUsername: z.string().uuid(),
+  paymentAmount: z.number(),
+  payoutAmount: z.number().optional(),
+  isClosed: z.boolean(),
+});
+export type TicketResponse = z.infer<typeof TicketSchema>;
+export interface ITicket extends Document {
   ticketId: string;
   playerUsername: string;
   paymentAmount: number;
@@ -66,7 +80,7 @@ const schema: Schema = new Schema(
     paymentAmount: {
       type: Number,
       required: true,
-      min: 0,
+      min: 0.01,
       validate: {
         validator: (v: number) => /^\d+(\.\d{1,2})?$/.test(v.toString()),
         message: (props: any) => `${props.value} is not a valid amount`,
@@ -74,7 +88,7 @@ const schema: Schema = new Schema(
     },
     payoutAmount: {
       type: Number,
-      min: 0,
+      min: 0.01,
       validate: {
         validator: (v: number) => /^\d+(\.\d{1,2})?$/.test(v.toString()),
         message: (props: any) => `${props.value} is not a valid amount`,
