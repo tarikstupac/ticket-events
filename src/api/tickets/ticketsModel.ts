@@ -51,7 +51,12 @@ export const TicketSchema = z.object({
   ticketId: z.string().uuid(),
   playerUsername: z.string().uuid(),
   paymentAmount: z.number(),
-  payoutAmount: z.number().optional(),
+  payoutAmount: z
+    .number()
+    .optional()
+    .transform((v) => {
+      if (v) return Number(v.toFixed(2));
+    }),
   isClosed: z.boolean(),
 });
 export type TicketResponse = z.infer<typeof TicketSchema>;

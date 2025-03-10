@@ -1,5 +1,7 @@
 import { env } from "@/common/utils/envConfig";
+import { updateStatistics } from "@/cron-jobs/updateStatistics";
 import { app, logger } from "@/server";
+import { CronJob } from "cron";
 import mongoose from "mongoose";
 
 const dbURI =
@@ -13,11 +15,14 @@ const options = {
   authSource: env.DB_NAME,
 };
 
+// Run the cron job every hour
+const job = new CronJob("0 * * * *", updateStatistics);
+
 const startServer = async () => {
   try {
     await mongoose.connect(dbURI, options);
     logger.info("Mongoose connection done");
-
+    job.start();
     const server = app.listen(env.PORT, () => {
       const { NODE_ENV, HOST, PORT } = env;
       logger.info(`Server (${NODE_ENV}) running on port http://${HOST}:${PORT}`);
@@ -27,6 +32,8 @@ const startServer = async () => {
       logger.info("sigint received, shutting down");
       mongoose.connection.close().then(() => {
         logger.info("Mongoose connection closed");
+        job.stop();
+        logger.info("Update statistics cron job stopped");
         server.close(() => {
           logger.info("server closed");
           process.exit();
@@ -38,7 +45,6 @@ const startServer = async () => {
     process.on("SIGINT", onCloseSignal);
     process.on("SIGTERM", onCloseSignal);
   } catch (e) {
-    logger.info("Mongoose connection error");
     logger.error(e);
     process.exit(1); // Exit the process with failure
   }
