@@ -1,6 +1,8 @@
 import { env } from "@/common/utils/envConfig";
 import { updateStatistics } from "@/cron-jobs/updateStatistics";
+import { redisClient } from "@/redis";
 import { app, logger } from "@/server";
+import { ticketChangeStream } from "@/streams/ticketClosed";
 import { CronJob } from "cron";
 import mongoose from "mongoose";
 
@@ -22,6 +24,7 @@ const startServer = async () => {
   try {
     await mongoose.connect(dbURI, options);
     logger.info("Mongoose connection done");
+    await redisClient.connect();
     job.start();
     const server = app.listen(env.PORT, () => {
       const { NODE_ENV, HOST, PORT } = env;
@@ -30,13 +33,19 @@ const startServer = async () => {
 
     const onCloseSignal = () => {
       logger.info("sigint received, shutting down");
-      mongoose.connection.close().then(() => {
-        logger.info("Mongoose connection closed");
-        job.stop();
-        logger.info("Update statistics cron job stopped");
-        server.close(() => {
-          logger.info("server closed");
-          process.exit();
+      ticketChangeStream.close().then(() => {
+        logger.info("Ticket change stream closed");
+        mongoose.connection.close().then(() => {
+          logger.info("Mongoose connection closed");
+          redisClient.disconnect().then(() => {
+            logger.info("Redis connection closed");
+            job.stop();
+            logger.info("Update statistics cron job stopped");
+            server.close(() => {
+              logger.info("server closed");
+              process.exit();
+            });
+          });
         });
       });
       setTimeout(() => process.exit(1), 10000).unref(); // Force shutdown after 10s

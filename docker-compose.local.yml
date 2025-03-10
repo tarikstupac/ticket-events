@@ -77,8 +77,6 @@ services:
       - '6379:6379'
     networks:
       - tickets
-    env_file:
-      - .env
   app:
     container_name: tickets-app
     env_file:
@@ -93,6 +91,8 @@ services:
     ports:
       - '8080:8080'
     depends_on:
+      redis:
+        condition: service_started
       mongo_rs0:
         condition: service_healthy
     healthcheck:

@@ -5,6 +5,10 @@ export class TicketRepository {
     return Ticket.findOne({ ticketId: id });
   }
 
+  async findByDocumentId(id: string): Promise<ITicket | null> {
+    return Ticket.findById(id);
+  }
+
   async insert(ticket: TicketPayment): Promise<ITicket> {
     return Ticket.create(ticket);
   }

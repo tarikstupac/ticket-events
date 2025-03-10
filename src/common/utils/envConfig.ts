@@ -21,4 +21,5 @@ export const env = cleanEnv(process.env, {
   ME_CONFIG_BASICAUTH: str({ devDefault: testOnly("false") }),
   ME_CONFIG_MONGODB_ENABLE_ADMIN: str({ devDefault: testOnly("false") }),
   ME_PORT: port({ devDefault: testOnly(8081) }),
+  REDIS_URL: str({ devDefault: testOnly("redis://localhost:6379") }),
 });

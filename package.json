@@ -31,6 +31,7 @@
     "mongoose": "^8.12.1",
     "pino": "^9.4.0",
     "pino-http": "^10.0.0",
+    "redis": "^4.7.0",
     "swagger-ui-express": "^5.0.0",
     "uuid": "^11.1.0",
     "zod": "^3.22.4"
